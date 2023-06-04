@@ -280,12 +280,6 @@ def eval(x: Exp, env=global_env) -> Exp:
         (parameters, body) = args
 
         return Procedure(parameters, body, env)
-    
-    elif operator == "display":
-        # Handle the 'display' operator for printing strings.
-        string = args
-
-        return string
 
     else:
         # If none of the above conditions are met, it is a procedure call.
