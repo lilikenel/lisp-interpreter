@@ -1,5 +1,10 @@
+# lisp-interpreter: Scheme interpreter in Python
+
+# (c) Lilike Nel 6/2023
 import math
 import operator as op
+
+# Types
 
 Symbol = str              # A Scheme Symbol is implemented as a Python str
 Number = (int, float)     # A Scheme Number is implemented as a Python int or float
@@ -8,6 +13,8 @@ List   = list             # A Scheme List is implemented as a Python list
 Exp    = (Atom, List)     # A Scheme expression is an Atom or List
 Env    = dict             # A Scheme environment is a mapping of {variable: value}
 
+
+# Environments
 
 def standard_env() -> Env:
     """
@@ -50,8 +57,77 @@ def standard_env() -> Env:
     })
     return env
 
+
+class Env(dict):
+    """
+    An environment: a dict of {'var': val} pairs, with an outer Env.
+
+    """
+    def __init__(self, parms=(), args=(), outer=None):
+        """
+        Initialize the environment with parameter-value pairs and an outer environment.
+
+        Args:
+            parms (tuple): The parameter names.
+            args (tuple): The corresponding argument values.
+            outer (Env, optional): The outer environment. Defaults to None.
+        """
+        self.update(zip(parms, args))
+        self.outer = outer
+
+    def find(self, var):
+        """
+        Find the innermost Env where var appears (lexical scoping).
+
+        Args:
+            var (str): The variable name to find.
+
+        Returns:
+            Env: The innermost environment where the variable is found.
+        """
+        if var in self:
+            return self
+        elif self.outer is not None:
+            return self.outer.find(var)
+        else:
+            raise NameError(f'Variable {var} is not defined.')
+
+
 global_env = standard_env()
 
+
+# Procedures
+
+class Procedure(object):
+    """
+    A user-defined Scheme procedure.
+
+    """
+    def __init__(self, parms, body, env):
+        """
+        Initialize the user-defined procedure.
+
+        Args:
+            parms (tuple): The parameter names of the procedure.
+            body (Exp): The body of the procedure.
+            env (Env): The environment in which the procedure is defined.
+        """
+        self.parms, self.body, self.env = parms, body, env
+
+    def __call__(self, *args):
+        """
+        Call the user-defined procedure with the given arguments.
+
+        Args:
+            *args: Variable number of arguments passed to the procedure.
+
+        Returns:
+            Exp: The result of evaluating the body of the procedure in a new environment.
+        """
+        return eval(self.body, Env(self.parms, args, self.env))
+
+
+# Parsing
 
 def tokenize(chars: str) -> list:
     """
@@ -142,6 +218,8 @@ def read_from_tokens(tokens: list) -> Exp:
         return atom(token)
 
 
+# eval
+
 def eval(x: Exp, env=global_env) -> Exp:
     """
     Evaluate an expression in an environment.
@@ -158,17 +236,23 @@ def eval(x: Exp, env=global_env) -> Exp:
     if isinstance(x, Symbol):
         # If x is a Symbol, it is treated as a variable reference.
         # Return the corresponding value from the environment.
-        return env[x]
+        return env.find(x)[x]
 
-    elif isinstance(x, Number):
+    elif not isinstance(x, List):
         # If x is a Number, it is considered a constant number.
         # A constant should evaluate to itself, so return x.
         return x
 
-    elif x[0] == 'if':
+    # As x is not a Symbol or a constant, we can assume it is a list
+    operator, *args = x
+
+    if operator == "quote":
+        return args[0]
+    
+    elif operator == 'if':
         # If the first element of x is 'if', it is a conditional expression.
-        # Unpack the values from x and evaluate the test expression.
-        (_if, test_expression, consequent_expression, alternative_expression) = x
+        # Unpack the values from args and evaluate the test expression.
+        (test_expression, consequent_expression, alternative_expression) = args
 
         # Determine which branch to evaluate based on the test expression.
         result_expression = (consequent_expression if eval(test_expression, env) else alternative_expression)
@@ -176,17 +260,80 @@ def eval(x: Exp, env=global_env) -> Exp:
         # Recursively evaluate the resulting expression and return the result.
         return eval(result_expression, env)
 
-    elif x[0] == 'define':
+    elif operator == 'define':
         # If the first element of x is 'define', it is a definition.
-        # Unpack the values from x and evaluate the expression.
-        (_define, symbol, expression) = x
+        # Unpack the values from args and evaluate the expression.
+        (symbol, expression) = args
 
         # Evaluate the expression and store the result in the environment with symbol as the key.
         env[symbol] = eval(expression, env)
+
+    elif operator == "set!":
+        # Handle the 'set!' operator for variable assignment.
+        (symbol, expression) = args
+
+        # Evaluate the expression and update the result in the environment with symbol as the key.
+        env.find(symbol)[symbol] = eval(symbol, env)
+
+    elif operator == "lambda":
+        # Handle the 'lambda' operator for creating a lambda procedure.
+        (parameters, body) = args
+
+        return Procedure(parameters, body, env)
+    
+    elif operator == "display":
+        # Handle the 'display' operator for printing strings.
+        string = args
+
+        return string
 
     else:
         # If none of the above conditions are met, it is a procedure call.
         # Evaluate the procedure and the arguments, and call the procedure with the evaluated arguments.
         procedure = eval(x[0], env)
-        args = [eval(arg, env) for arg in x[1:]]
-        return procedure(*args)
+        vals = [eval(arg, env) for arg in args]
+        return procedure(*vals)
+
+
+# REPL
+
+def lispstr(exp):
+    """
+    Convert a Python object back into a Lisp-readable string.
+
+    Args:
+        exp (object): The Python object to be converted.
+
+    Returns:
+        str: The Lisp-readable string representation of the object.
+
+    """
+    if isinstance(exp, List):
+        return '(' + ' '.join(map(lispstr, exp)) + ')' 
+    else:
+        return str(exp)
+
+
+def repl(prompt='lis.py> '):
+    """
+    A prompt-read-eval-print loop.
+
+    Args:
+        prompt (str, optional): The prompt string. Defaults to 'lis.py> '.
+
+    """
+    while True:
+
+        val = eval(parse(input(prompt)))
+
+        if val == "^C":
+            print("Quitting...")
+            break
+
+        if val is not None:
+            print(lispstr(val))
+
+
+if __name__ == "__main__":
+
+    repl()
