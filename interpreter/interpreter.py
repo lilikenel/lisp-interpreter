@@ -290,7 +290,7 @@ def eval(x: Exp, env=global_env) -> Exp:
     else:
         # If none of the above conditions are met, it is a procedure call.
         # Evaluate the procedure and the arguments, and call the procedure with the evaluated arguments.
-        procedure = eval(x[0], env)
+        procedure = eval(operator, env)
         vals = [eval(arg, env) for arg in args]
         return procedure(*vals)
 
@@ -314,21 +314,17 @@ def lispstr(exp):
         return str(exp)
 
 
-def repl(prompt='lis.py> '):
+def repl(prompt='lisp-interpreter> '):
     """
     A prompt-read-eval-print loop.
 
     Args:
-        prompt (str, optional): The prompt string. Defaults to 'lis.py> '.
+        prompt (str, optional): The prompt string. Defaults to 'lisp-interpreter> '.
 
     """
     while True:
 
         val = eval(parse(input(prompt)))
-
-        if val == "^C":
-            print("Quitting...")
-            break
 
         if val is not None:
             print(lispstr(val))
