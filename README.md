@@ -37,11 +37,17 @@ The Lisp Interpreter supports the following features:
 Here's an example of using the Lisp Interpreter:
 
 lisp-interpreter> (+ 1 2)
+
 3
+
 lisp-interpreter> (define radius 5)
+
 lisp-interpreter> (* pi (* radius radius))
+
 78.53981633974483
+
 lisp-interpreter> (number? radius)
+
 True
 
 ## Acknowledgments
