@@ -13,7 +13,7 @@ To use the Lisp Interpreter, you can follow these steps:
 2. Clone or download the code repository.
 3. Open a terminal or command prompt and navigate to the project directory.
 4. Run the interpreter by executing the following command:
-   python lisp_interpreter.py
+   python interpreter.py
 5. Once the interpreter is running, you can enter Scheme expressions or programs at the prompt (lisp-interpreter>) and press Enter to evaluate them.
 6. The interpreter will display the result of the evaluation.
 
